@@ -24,6 +24,8 @@ def switch_import(module):
         from modules.OCR import create, run
     if module == "Places365":
         from modules.Places365 import create, run
+    if module == "FeatureExtraction":
+        from modules.FeatureExtraction import create, run
 
     return create, run
 
@@ -46,6 +48,7 @@ if __name__ == "__main__":
             "ObjectDetection",
             "OCR",
             "Places365",
+            "FeatureExtraction",
         ],
         help="module name",
     )
@@ -71,6 +74,13 @@ if __name__ == "__main__":
         help="batch size of the prediction",
         # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
     )
+    parser.add_argument(
+        "-m",
+        "--model",
+        choices=["moco", "dino_ditv8", "resnet50"],
+        help="model used for feature extraction",
+        # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
+    )
 
     args = parser.parse_args()
     action = args.action
@@ -82,6 +92,7 @@ if __name__ == "__main__":
 
     dataset = os.path.expanduser(f"~/{args.dataset}")
     batch_size = args.batch_size
+    model = args.model
     # print(action, module, dirpath, out_dir, dataset)
 
     # import module
@@ -92,9 +103,15 @@ if __name__ == "__main__":
         create(dirpath, out_dir)
     if action == "run":
         if batch_size:
-            run(dirpath, out_dir, dataset, batch_size)
+            if module != "FeatureExtraction":
+                run(dirpath, out_dir, dataset, batch_size)
+            else:
+                run(dirpath, out_dir, dataset, batch_size, model)
         else:
-            run(dirpath, out_dir, dataset, 32)
+            if module != "FeatureExtraction":
+                run(dirpath, out_dir, dataset, 32)
+            else:
+                run(dirpath, out_dir, dataset, 32, model)
     if action == "validate":
         sys.argv = [sys.argv[0], dirpath, "--out_dir", out_dir]
         validate(sys.argv)

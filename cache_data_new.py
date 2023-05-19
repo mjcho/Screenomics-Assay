@@ -16,7 +16,7 @@ from torch.utils.data import ChainDataset
 import pickle
 import argparse
 import timm
-from mocov3 import vits
+# from mocov3 import vits
 
 from PIL import features, Image
 from packaging import version

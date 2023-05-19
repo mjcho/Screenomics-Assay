@@ -6,15 +6,12 @@ import imghdr
 import time
 import numpy as np
 
-from facenet_pytorch import MTCNN, InceptionResnetV1
-from PIL import Image
-from tqdm import tqdm
-import types
+import onnxruntime as ort
+import numpy as np
 import json
-
-from facelib import AgeGenderEstimator, EmotionDetector
 import pickle
 from datetime import datetime
+from tqdm import tqdm
 
 from PIL import features, Image
 from packaging import version
@@ -36,8 +33,8 @@ else:
 
 
 # Set params
-module = "Face"
-device = torch.device("cuda:0")
+module = "ImageClassification"
+# device = torch.device("cuda:0")
 
 
 """ Create dataset """
@@ -53,10 +50,15 @@ def create(dirpath, out_dir):
     # transform function
     tf = transforms.Compose(
         [
+            transforms.Resize(256, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.Resize(
-                (224, 224), interpolation=transforms.InterpolationMode.NEAREST
+                (224, 224), interpolation=transforms.InterpolationMode.BILINEAR
             ),
             transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[127 / 255, 127 / 255, 127 / 255],
+                std=[128 / 255, 128 / 255, 128 / 255],
+            ),
         ]
     )
 
@@ -92,44 +94,33 @@ def run(dirpath, out_dir, dataset, batch_size):
 
     # Load model
     print("Loading models...\n\n")
-    mtcnn = MTCNN(
-        image_size=224,
-        margin=0,
-        min_face_size=20,
-        thresholds=[0.6, 0.7, 0.7],
-        factor=0.709,
-        post_process=False,
-        select_largest=True,
-        keep_all=True,
-        device=device,
+    EP_list = [
+        (
+            "CUDAExecutionProvider",
+            {
+                "device_id": 0,
+                "arena_extend_strategy": "kSameAsRequested",
+                "gpu_mem_limit": 40 * 1024 * 1024 * 1024,
+            },
+        )
+    ]
+    sess_options = ort.SessionOptions()
+    sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
+    image_classifier_onnx = os.path.expanduser("~/ic_batch.onnx")
+    image_classifier = ort.InferenceSession(
+        image_classifier_onnx, sess_options, providers=EP_list
     )
-    age_gender_detector = AgeGenderEstimator(device=device)
-    emotion_detector = EmotionDetector(device=device)
+    # import labels
+    class_labels = json.load(
+        open(
+            os.path.expanduser(
+                "~/models/vision/classification/efficientnet-lite4/dependencies/labels_map.txt"
+            ),
+            "r",
+        )
+    )
     print("\n\nModels loaded.\n\n")
-
-    # Forward function for MTCNN to return results for analysis
-    def forward(self, img, save_path=None, return_prob=True):
-        # Detect faces
-        batch_boxes, batch_probs, batch_points = self.detect(img, landmarks=True)
-        # Select faces
-        if not self.keep_all:
-            batch_boxes, batch_probs, batch_points = self.select_boxes(
-                batch_boxes,
-                batch_probs,
-                batch_points,
-                img,
-                method=self.selection_method,
-            )
-        # Extract faces
-        faces = self.extract(img, batch_boxes, save_path)
-
-        if return_prob:
-            return faces, batch_boxes, batch_probs, batch_points
-        else:
-            return faces
-
-    mtcnn.forward = types.MethodType(forward, mtcnn)
-    mtcnn = mtcnn.eval()
 
     # Load dataset
     print("Loading dataset...")
@@ -142,13 +133,13 @@ def run(dirpath, out_dir, dataset, batch_size):
     # Create dataset and loader
     imageloader = torch.utils.data.DataLoader(
         dataset=dataset,
-        batch_size=batch_size,
+        batch_size=batch_size,  # each cpu process 30 images per batch
         num_workers=4,
         prefetch_factor=2,
     )
     print(f"dataloader created, length = {len(imageloader)}.\n\n")
 
-    # TODO: rusumption control
+    # TODO: resumption control
     is_resume = False
 
     # Set pipeline params
@@ -163,7 +154,7 @@ def run(dirpath, out_dir, dataset, batch_size):
 
     # create output dirs
     # structure: assay_output---ImageClassification---results
-    # ---OtherModules..     ---logs
+    #                        ---OtherModules..     ---logs
     # if not os.path.isdir(out_dir):  # for outputs
     #     os.mkdir(out_dir)
     if not os.path.isdir(model_out_dir):  # for a specific model
@@ -182,13 +173,12 @@ def run(dirpath, out_dir, dataset, batch_size):
     # for logging error messages
     err = {}
 
-    for i, (imgs, labels) in tqdm(enumerate(imageloader)):
-        # actual batch no. is i + last_batch + 1
+    for i, (input_arrays, labels) in tqdm(enumerate(imageloader)):
+        # start from last_batch
         # if is_resume:
         #     i = i + last_batch
 
         # create batch entry in error log
-        # err[i] = {'input': '', 'inference': '', 'analysis': '', 'output': ''}
         err[i] = {}
 
         """Print and log progress"""
@@ -201,8 +191,13 @@ def run(dirpath, out_dir, dataset, batch_size):
 
         """Convert input array"""
         try:
-            imgs = imgs.to(device).permute(0, 2, 3, 1)
-
+            # convert input from dataloader to np array
+            input_arrays = input_arrays.detach().numpy()
+            # transpose from [batch_size, C, H, W], which is from dataloader, to
+            # [batch_size, H, W, C] for inference
+            input_arrays = input_arrays.transpose(0, 2, 3, 1)
+            # swap channels: dataloader uses pillow (RGB) but the model needs cv2 (BGR)
+            input_arrays = input_arrays[:, :, :, ::-1]
         except Exception as e:
             t_input = time.time()
             input_log = f"\t\t Failed converting input array for batch {i + 1}, time elapsed: {int((t_input-t0)/60)}m {round((t_input-t0)%60, 2)}s. \n"
@@ -213,9 +208,7 @@ def run(dirpath, out_dir, dataset, batch_size):
 
         """Inference"""
         try:
-            with torch.no_grad():
-                faces, batch_boxes, batch_probs, batch_points = mtcnn(imgs)
-
+            results = image_classifier.run(["Softmax:0"], {"images:0": input_arrays})[0]
         except Exception as e:
             t_inf = time.time()
             inf_log = f"\t\t Failed inferencing for batch {i + 1}, time elapsed: {int((t_inf-t0)/60)}m {round((t_inf-t0)%60, 2)}s. \n"
@@ -223,105 +216,6 @@ def run(dirpath, out_dir, dataset, batch_size):
             err[i]["inference"] = str(e)
             with open(model_log_path, "a", encoding="utf-8") as ap_log:
                 ap_log.write(inf_log)
-
-        """Analysis"""
-        try:
-            # Save if not face detected
-            if all(f is None for f in faces):
-                t_save = time.time()
-                age = []
-                gender = []
-                emotion = []
-                emotion_prob = []
-                if is_resume:
-                    if i != n_batch - 1:
-                        img_names = [
-                            img_name.split("/")[-1]
-                            for (img_name, _) in imageloader.dataset.dataset.samples[
-                                (i * batch_size) : (i * batch_size + batch_size)
-                            ]
-                        ]
-                    else:  # for the last batch, len of img_names not necessarily = batch_size
-                        img_names = [
-                            img_name.split("/")[-1]
-                            for (img_name, _) in imageloader.dataset.dataset.samples[
-                                (i * batch_size) : (i * batch_size + len(imgs))
-                            ]
-                        ]
-                else:
-                    if i != n_batch - 1:
-                        img_names = [
-                            img_name.split("/")[-1]
-                            for (img_name, _) in imageloader.dataset.samples[
-                                (i * batch_size) : (i * batch_size + batch_size)
-                            ]
-                        ]
-                    else:  # for the last batch, len of img_names not necessarily = batch_size
-                        img_names = [
-                            img_name.split("/")[-1]
-                            for (img_name, _) in imageloader.dataset.samples[
-                                (i * batch_size) : (i * batch_size + len(imgs))
-                            ]
-                        ]
-
-                # save output
-                output_name = f"{i}.{img_names[0]}.{img_names[-1]}.npz"
-                np.savez(
-                    model_res_dir + "/" + output_name,
-                    batch_boxes=batch_boxes,
-                    batch_probs=batch_probs,
-                    batch_points=batch_points,
-                    age=age,
-                    gender=gender,
-                    emotion=emotion,
-                    emotion_prob=emotion_prob,
-                    img_names=img_names,
-                )
-                # delete error entry if no error occurred for this batch
-                if all(v == "" for v in err[i].values()):
-                    del err[i]
-                continue
-
-            n_faces = []  # number of faces for each img, e.g., [0, 0, 2, 1, 0, ...]
-            faces_input = (
-                []
-            )  # list of face tensors, e.g., [(1, 224, 224, 3), (2, 224, 224, 3), ...]
-            for elem in faces:
-                if isinstance(elem, torch.Tensor):
-                    n_faces.append(elem.shape[0])
-                    faces_input.append(elem)
-                else:
-                    n_faces.append(0)
-
-            faces_input = torch.cat(faces_input, dim=0)
-            with torch.no_grad():
-                ag_res = age_gender_detector.detect(faces_input)
-                e_res = emotion_detector.detect_emotion(faces_input)
-
-            age = []
-            gender = []
-            emotion = []
-            emotion_prob = []
-            faces_added = 0
-            for _, n in enumerate(n_faces):
-                if n == 0:
-                    age.append(None)
-                    gender.append(None)
-                    emotion.append(None)
-                    emotion_prob.append(None)
-                else:
-                    age.append(ag_res[1][faces_added : faces_added + n])
-                    gender.append(ag_res[0][faces_added : faces_added + n])
-                    emotion.append(list(e_res[0][faces_added : faces_added + n]))
-                    emotion_prob.append(e_res[1][faces_added : faces_added + n])
-                    faces_added += n
-        except Exception as e:
-            t_analysis = time.time()
-            analysis_log = f"\t\t Failed analyzing faces for batch {i + 1}, time elapsed: {int((t_analysis-t0)/60)}m {round((t_analysis-t0)%60, 2)}s. \n"
-            print(analysis_log)
-            err[i]["analysis"] = str(e)
-            with open(model_log_path, "a", encoding="utf-8") as ap_log:
-                ap_log.write(analysis_log)
 
         """Save output"""
         try:
@@ -333,14 +227,14 @@ def run(dirpath, out_dir, dataset, batch_size):
                     img_names = [
                         img_name.split("/")[-1]
                         for (img_name, _) in imageloader.dataset.dataset.samples[
-                            (i * batch_size) : (i * batch_size + batch_size)
+                            (i * batch_size) : (i * batch_size + 360)
                         ]
                     ]
                 else:  # for the last batch, len of img_names not necessarily = batch_size
                     img_names = [
                         img_name.split("/")[-1]
                         for (img_name, _) in imageloader.dataset.dataset.samples[
-                            (i * batch_size) : (i * batch_size + len(imgs))
+                            (i * batch_size) :
                         ]
                     ]
             else:
@@ -348,29 +242,21 @@ def run(dirpath, out_dir, dataset, batch_size):
                     img_names = [
                         img_name.split("/")[-1]
                         for (img_name, _) in imageloader.dataset.samples[
-                            (i * batch_size) : (i * batch_size + batch_size)
+                            (i * batch_size) : (i * batch_size + 360)
                         ]
                     ]
                 else:  # for the last batch, len of img_names not necessarily = batch_size
                     img_names = [
                         img_name.split("/")[-1]
                         for (img_name, _) in imageloader.dataset.samples[
-                            (i * batch_size) : (i * batch_size + len(imgs))
+                            (i * batch_size) :
                         ]
                     ]
 
             # save output
             output_name = f"{i}.{img_names[0]}.{img_names[-1]}.npz"
             np.savez(
-                model_res_dir + "/" + output_name,
-                batch_boxes=batch_boxes,
-                batch_probs=batch_probs,
-                batch_points=batch_points,
-                age=age,
-                gender=gender,
-                emotion=emotion,
-                emotion_prob=emotion_prob,
-                img_names=img_names,
+                model_res_dir + "/" + output_name, results=results, img_names=img_names
             )
 
         except Exception as e:
@@ -391,7 +277,7 @@ def run(dirpath, out_dir, dataset, batch_size):
             json.dump(err, ef, indent=4)
 
     t_done = time.time()
-    done_log = f"Done all {n_batch} batches at: {str(datetime.now())}.\n Elapsed time: {int((t_done-t0)/60)}m {round((t_done-t0)%60, 2)}s. \n"
+    done_log = f"Done all {n_batch} batches. Elapsed time: {int((t_done-t0)/60)}m {round((t_done-t0)%60, 2)}s. \n"
     print(done_log)
     with open(model_log_path, "a", encoding="utf-8") as ap_log:
         ap_log.write(done_log)
