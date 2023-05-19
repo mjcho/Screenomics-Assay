@@ -59,63 +59,30 @@ if __name__ == "__main__":
         help="the directory for output log and invalid images (relative to user dir), default is user dir",
         default=os.path.expanduser("~"),
     )
-    # subparsers = parser.add_subparsers(help="Choose a command")
-    # create_parser = subparsers.add_parser("create", help='"create" help')
-    # create_parser.add_argument(
-    #     "module",
-    #     choices=[
-    #         "DeepAffect",
-    #         "Face",
-    #         "Food",
-    #         "ImageClassification",
-    #         "ImageProperties",
-    #         "ObjectDetection",
-    #         "OCR",
-    #         "Places365",
-    #     ],
-    #     help="module name",
-    # )
-    # create_parser.add_argument(
-    #     "dirpath",
-    #     help="the directory of the images (relative to user dir), first level needs to be classes/participants",
-    # )
-    # create_parser.add_argument(
-    #     "-o",
-    #     "--out_dir",
-    #     help="the directory for output log and invalid images (relative to user dir), default is user dir",
-    #     default=os.path.expanduser("~"),
-    # )
-    # run_parser = subparsers.add_parser("run", help='"run" help')
-    # run_parser.add_argument(
-    #     "module",
-    #     choices=[
-    #         "DeepAffect",
-    #         "Face",
-    #         "Food",
-    #         "ImageClassification",
-    #         "ImageProperties",
-    #         "ObjectDetection",
-    #         "OCR",
-    #         "Places365",
-    #     ],
-    #     help="module name",
-    # )
-    # run_parser.add_argument(
-    #     "dirpath",
-    #     help="the directory of the images (relative to user dir), first level needs to be classes/participants",
-    # )
-    # run_parser.add_argument(
-    #     "-o",
-    #     "--out_dir",
-    #     help="the directory for output log and invalid images (relative to user dir), default is user dir",
-    #     default=os.path.expanduser("~"),
-    # )
+    parser.add_argument(
+        "-d",
+        "--dataset",
+        help="the path of the dataset to be run on (relative to user dir)",
+        # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
+    )
+    parser.add_argument(
+        "-bs",
+        "--batch_size",
+        help="batch size of the prediction",
+        # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
+    )
 
     args = parser.parse_args()
     action = args.action
     module = args.module
     dirpath = os.path.expanduser(f"~/{args.dirpath}")
     out_dir = os.path.expanduser(f"~/{args.out_dir}")
+    if not args.dataset:
+        args.dataset = f"{dirpath.split('/')[-1]}_dataset_{module}.pkl"
+
+    dataset = os.path.expanduser(f"~/{args.dataset}")
+    batch_size = args.batch_size
+    # print(action, module, dirpath, out_dir, dataset)
 
     # import module
     create, run = switch_import(module)
@@ -124,7 +91,10 @@ if __name__ == "__main__":
     if action == "create":
         create(dirpath, out_dir)
     if action == "run":
-        run(dirpath, out_dir)
+        if batch_size:
+            run(dirpath, out_dir, dataset, batch_size)
+        else:
+            run(dirpath, out_dir, dataset, 32)
     if action == "validate":
         sys.argv = [sys.argv[0], dirpath, "--out_dir", out_dir]
         validate(sys.argv)
