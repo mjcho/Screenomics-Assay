@@ -14,20 +14,22 @@ pip uninstall -y pillow
 CFLAGS="${CFLAGS} -mavx2" pip install --upgrade --no-cache-dir --force-reinstall --no-binary :all: --compile pillow-simd
 ```
 Test if `pillow-simd` is utilizing `libjpeg-turbo`:
-`python -c "from PIL import features; print(features.check_feature('libjpeg_turbo'))"`  
-Reference:https://fastai1.fast.ai/performance.html#pillow-simd
+```
+python -c "from PIL import features; print(features.check_feature('libjpeg_turbo'))"
+```
+<!-- Reference:https://fastai1.fast.ai/performance.html#pillow-simd -->
 
 Also, see known issues bellow to fix incompatibility with `torchvision`. 
 
 ## Download models
 ### Image classification: ONNX
-Clone this: https://github.com/onnx/models.git
+Clone this: https://github.com/onnx/models.git  
 Then:
-```cd models git lfs install
+```
+cd models git lfs install
 git lfs pull --include="vision/classification/efficientnet-lite4/model/efficientnet-lite4-11.onnx" --exclude=""
 ```
-
-or download all models using:  
+Or download all models using:  
 `git lfs pull --include="*" --exclude=""`  
 
 

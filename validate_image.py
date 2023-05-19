@@ -15,7 +15,7 @@ def img_verify2_p(path):
         return None
 
 
-# tqdm func
+# multithreading tqdm func
 def run(f, filepaths):
     with ThreadPoolExecutor(max_workers=20) as executor:
         is_invalid = list(tqdm(executor.map(f, filepaths), total=len(filepaths)))
