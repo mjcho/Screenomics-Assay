@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import imghdr
 import time
 from datetime import datetime
@@ -22,7 +23,7 @@ def run(f, filepaths):
     return is_invalid
 
 
-if __name__ == "__main__":
+def validate(args):
     parser = argparse.ArgumentParser(description="Validate the images in parallel.")
     parser.add_argument(
         "dirpath",
@@ -36,8 +37,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    dirpath = os.path.expanduser(f"~/{args.dirpath}")
-    out_dir = os.path.expanduser(f"~/{args.out_dir}")
+    # dirpath = os.path.expanduser(f"~/{args.dirpath}")
+    # out_dir = os.path.expanduser(f"~/{args.out_dir}")
+    dirpath = args.dirpath
+    out_dir = args.out_dir
 
     # create out_dir
     if not os.path.isdir(out_dir):  # for outputs
@@ -112,3 +115,7 @@ if __name__ == "__main__":
     print(log_se)
     with open(f"{out_dir}/invalid_checked_test.txt", "a", encoding="utf-8") as log:
         log.write(log_se)
+
+
+if __name__ == "__main__":
+    validate(sys.argv)
