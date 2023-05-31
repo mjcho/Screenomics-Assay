@@ -44,7 +44,6 @@ def create(dirpath, out_dir):
     if not os.path.isdir(out_dir):  # for outputs
         os.mkdir(out_dir)
 
-    new_size = 64
     tf = transforms.Compose(
         [
             transforms.Resize((640, 352)),
