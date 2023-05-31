@@ -18,7 +18,7 @@ import pickle
 import argparse
 import timm
 
-# from mocov3 import vits
+from mocov3 import vits
 from datetime import datetime
 
 from PIL import features, Image
@@ -157,12 +157,12 @@ def create(dirpath, out_dir):
 
 def run(dirpath, out_dir, dataset, batch_size, model="moco"):
     dataset_name = dirpath.split("/")[-1]
-    model = args.model
+    # model = args.model
     # workers = args.workers
 
     # Load model
     print("Loading models...\n\n")
-    model, encode_image = get_model(model, device=device)
+    _, encode_image = get_model(model, device=device)
     print("\n\nModels loaded.\n\n")
 
     # Load dataset
@@ -178,7 +178,10 @@ def run(dirpath, out_dir, dataset, batch_size, model="moco"):
     # Set pipeline params
     # save every save_batch images
     save_batch = 65536
-    model_output_dir = os.path.expanduser(f"~/{out_dir}/{model}")
+    model_output_dir = f"{out_dir}/{model}"
+    # create dir for saving dataset
+    if not os.path.isdir(model_output_dir):  # for outputs
+        os.mkdir(model_output_dir)
 
     # Resume from where is left off by checking the saved files
     cur_files = os.listdir(model_output_dir)
@@ -212,7 +215,7 @@ def run(dirpath, out_dir, dataset, batch_size, model="moco"):
     file_counter = max_idx // save_batch
     accumulated_data = None
     with torch.no_grad():
-        for image_idx, (image, _) in enumerate(tqdm(imagelaoder)):
+        for image_idx, (image, _) in enumerate(tqdm(imageloader)):
             image = image.to(device)
             # image = nn.functional.interpolate(image, 224)
             image_encodings = encode_image(image).cpu()

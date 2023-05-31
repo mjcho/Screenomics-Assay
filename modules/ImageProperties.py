@@ -1,16 +1,14 @@
-import os
 import torch
 import torchvision
 from torchvision import transforms
-import imghdr
+from image_entropy_GPU import entropy
 import time
 import numpy as np
-
-import onnxruntime as ort
-import json
-import pickle
 from datetime import datetime
+import pickle
+import json
 from tqdm import tqdm
+import os
 
 from PIL import features, Image
 from packaging import version
@@ -32,8 +30,8 @@ else:
 
 
 # Set params
-module = "ImageClassification"
-# device = torch.device("cuda:0")
+module = "ImageProperties"
+device = torch.device("cuda:0")
 
 
 """ Create dataset """
@@ -46,18 +44,13 @@ def create(dirpath, out_dir):
     if not os.path.isdir(out_dir):  # for outputs
         os.mkdir(out_dir)
 
-    # transform function
+    new_size = 64
     tf = transforms.Compose(
         [
-            transforms.Resize(256, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.Resize(
-                (224, 224), interpolation=transforms.InterpolationMode.BILINEAR
+                (new_size, new_size), interpolation=transforms.InterpolationMode.BICUBIC
             ),
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[127 / 255, 127 / 255, 127 / 255],
-                std=[128 / 255, 128 / 255, 128 / 255],
-            ),
         ]
     )
 
@@ -93,32 +86,13 @@ def run(dirpath, out_dir, dataset, batch_size):
 
     # Load model
     print("Loading models...\n\n")
-    EP_list = [
-        (
-            "CUDAExecutionProvider",
-            {
-                "device_id": 0,
-                "arena_extend_strategy": "kSameAsRequested",
-                "gpu_mem_limit": 40 * 1024 * 1024 * 1024,
-            },
-        )
-    ]
-    sess_options = ort.SessionOptions()
-    sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-
-    image_classifier_onnx = os.path.expanduser("~/ic_batch.onnx")
-    image_classifier = ort.InferenceSession(
-        image_classifier_onnx, sess_options, providers=EP_list
+    # set patch_size to new_size so no patching is performed (compute for the whole image)
+    new_size = 64
+    model = entropy.Entropy(
+        patch_size=new_size, image_width=new_size, image_height=new_size
     )
-    # import labels
-    class_labels = json.load(
-        open(
-            os.path.expanduser(
-                "~/models/vision/classification/efficientnet-lite4/dependencies/labels_map.txt"
-            ),
-            "r",
-        )
-    )
+    model.eval()
+    model.to(device)
     print("\n\nModels loaded.\n\n")
 
     # Load dataset
@@ -172,13 +146,13 @@ def run(dirpath, out_dir, dataset, batch_size):
     # for logging error messages
     err = {}
 
-    for i, (input_arrays, labels) in tqdm(enumerate(imageloader)):
-        # start from last_batch
+    for i, (inputs, labels) in tqdm(enumerate(imageloader)):
+        # actual batch no. is i + last_batch + 1
         # if is_resume:
         #     i = i + last_batch
 
         # create batch entry in error log
-        err[i] = {}
+        err[i] = {"input": "", "inference": "", "output": ""}
 
         """Print and log progress"""
         t_bstart = time.time()
@@ -190,13 +164,8 @@ def run(dirpath, out_dir, dataset, batch_size):
 
         """Convert input array"""
         try:
-            # convert input from dataloader to np array
-            input_arrays = input_arrays.detach().numpy()
-            # transpose from [batch_size, C, H, W], which is from dataloader, to
-            # [batch_size, H, W, C] for inference
-            input_arrays = input_arrays.transpose(0, 2, 3, 1)
-            # swap channels: dataloader uses pillow (RGB) but the model needs cv2 (BGR)
-            input_arrays = input_arrays[:, :, :, ::-1]
+            inputs = inputs.to(device)
+
         except Exception as e:
             t_input = time.time()
             input_log = f"\t\t Failed converting input array for batch {i + 1}, time elapsed: {int((t_input-t0)/60)}m {round((t_input-t0)%60, 2)}s. \n"
@@ -207,7 +176,11 @@ def run(dirpath, out_dir, dataset, batch_size):
 
         """Inference"""
         try:
-            results = image_classifier.run(["Softmax:0"], {"images:0": input_arrays})[0]
+            with torch.no_grad():
+                ent_vals = model(inputs)
+                ent_vals = ent_vals.detach().cpu().numpy()  # shape = (batch_size, 1)
+                ent_vals = ent_vals.squeeze(1)  # shape = (batch_size, )
+
         except Exception as e:
             t_inf = time.time()
             inf_log = f"\t\t Failed inferencing for batch {i + 1}, time elapsed: {int((t_inf-t0)/60)}m {round((t_inf-t0)%60, 2)}s. \n"
@@ -255,7 +228,7 @@ def run(dirpath, out_dir, dataset, batch_size):
             # save output
             output_name = f"{i}.{img_names[0]}.{img_names[-1]}.npz"
             np.savez(
-                model_res_dir + "/" + output_name, results=results, img_names=img_names
+                model_res_dir + "/" + output_name, entropy=ent_vals, img_names=img_names
             )
 
         except Exception as e:
@@ -276,7 +249,7 @@ def run(dirpath, out_dir, dataset, batch_size):
             json.dump(err, ef, indent=4)
 
     t_done = time.time()
-    done_log = f"Done all {n_batch} batches. Elapsed time: {int((t_done-t0)/60)}m {round((t_done-t0)%60, 2)}s. \n"
+    done_log = f"Done all {n_batch} batches at: {str(datetime.now())}. Elapsed time: {int((t_done-t0)/60)}m {round((t_done-t0)%60, 2)}s. \n"
     print(done_log)
     with open(model_log_path, "a", encoding="utf-8") as ap_log:
         ap_log.write(done_log)

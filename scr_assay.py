@@ -79,7 +79,6 @@ if __name__ == "__main__":
         "--model",
         choices=["moco", "dino_ditv8", "resnet50"],
         help="model used for feature extraction",
-        # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
     )
 
     args = parser.parse_args()
