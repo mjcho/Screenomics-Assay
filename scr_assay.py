@@ -31,14 +31,26 @@ def switch_import(module):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create dataset for or run a module")
+    # main parser
+    parser = argparse.ArgumentParser(description="Screenomics-assay main method")
+    subparsers = parser.add_subparsers(
+        title="action to take",
+        # description="action to take",
+        help="use %(prog)s [action] -h for help for each action",
+    )
+    # arguments common to all actions (create, run, validate)
     parser.add_argument(
-        "action",
-        choices=["create", "run", "validate"],
-        help="create dataset or run module?",
+        "dir_path",
+        help="the directory of images, first level needs to be classes/participants",
     )
     parser.add_argument(
+        "out_dir", help="the directory for output log and invalid images"
+    )
+    # module_parser, parent of create and run, so both actions share the module argument
+    module_parser = argparse.ArgumentParser(description="module", add_help=False)
+    module_parser.add_argument(
         "module",
+        help="module to run or create dataset for",
         choices=[
             "DeepAffect",
             "Face",
@@ -50,67 +62,89 @@ if __name__ == "__main__":
             "Places365",
             "FeatureExtraction",
         ],
-        help="module name",
     )
-    parser.add_argument(
-        "dirpath",
-        help="the directory of the images (relative to user dir), first level needs to be classes/participants",
+    # create parser
+    create_parser = subparsers.add_parser(
+        "create", parents=[module_parser], help="create dataset for a module"
     )
-    parser.add_argument(
-        "-o",
-        "--out_dir",
-        help="the directory for output log and invalid images (relative to user dir), default is user dir",
-        default=os.path.expanduser("~"),
+    create_parser.set_defaults(action="create")
+    # run parser
+    run_parser = subparsers.add_parser(
+        "run", parents=[module_parser], help="run module over a dataset"
     )
-    parser.add_argument(
+    run_parser.set_defaults(action="run")
+    run_parser.add_argument(
         "-d",
         "--dataset",
-        help="the path of the dataset to be run on (relative to user dir)",
-        # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
+        help="the path of the dataset to be run on, default: [out_dir]/[name of the image dir]_dataset_[module].pkl",
     )
-    parser.add_argument(
+    run_parser.add_argument(
         "-bs",
         "--batch_size",
-        help="batch size of the prediction",
-        # default=os.path.expanduser(f"{dirpath.split('/')}_dataset_{MODULE}.pkl"),
+        help="batch size of the prediction, default: 32",
+        default=32,
     )
-    parser.add_argument(
+    run_parser.add_argument(
+        "-nw",
+        "--num_workers",
+        help="number of workers for the dataloader, default: num of cpu cores",
+        default=os.cpu_count(),
+    )
+    run_parser.add_argument(
+        "-dv",
+        "--device",
+        default="cuda:0",
+        help="gpu id to run the model on (int), default: 0",
+    )
+    run_parser.add_argument(
         "-m",
         "--model",
-        choices=["moco", "dino_ditv8", "resnet50"],
-        help="model used for feature extraction",
+        choices=["clip", "dino_vitb8", "moco", "resnet50"],
+        default="clip",
+        help="model used for feature extraction, default: clip",
     )
+    # validate parser
+    validate_parser = subparsers.add_parser(
+        "validate", help="validate images in a directory"
+    )
+    validate_parser.set_defaults(action="validate")
 
     args = parser.parse_args()
+    print(args)
     action = args.action
-    module = args.module
-    dirpath = os.path.expanduser(f"~/{args.dirpath}")
-    out_dir = os.path.expanduser(f"~/{args.out_dir}")
-    if not args.dataset:
-        args.dataset = f"{dirpath.split('/')[-1]}_dataset_{module}.pkl"
-
-    dataset = os.path.expanduser(f"~/{args.dataset}")
-    batch_size = args.batch_size
-    model = args.model
-    # print(action, module, dirpath, out_dir, dataset)
-
-    # import module
-    create, run = switch_import(module)
+    # dir_path = os.path.expanduser(f"~/{args.dir_path}")
+    # out_dir = os.path.expanduser(f"~/{args.out_dir}")
+    dir_path = args.dir_path
+    out_dir = args.out_dir
+    # create out_dir if not exist
+    if not os.path.isdir(out_dir):  # for outputs
+        os.mkdir(out_dir)
 
     # execute
     if action == "create":
-        create(dirpath, out_dir)
+        # create dir for saving dataset
+        create, run = switch_import(args.module)
+        create(dir_path, out_dir)
     if action == "run":
-        if batch_size:
-            if module != "FeatureExtraction":
-                run(dirpath, out_dir, dataset, batch_size)
-            else:
-                run(dirpath, out_dir, dataset, batch_size, model)
+        module = args.module
+        batch_size = int(args.batch_size)
+        num_workers = int(args.num_workers)
+        device = args.device
+        model = args.model
+        if device == "cpu":
+            raise ValueError("CPU is not supported")
+        if device != "cpu" and device != "cuda:0":
+            device = f"cuda:{device}"
+
+        if not args.dataset:
+            dataset = f"{out_dir}/{dir_path.split('/')[-1]}_dataset_{module}.pkl"
         else:
-            if module != "FeatureExtraction":
-                run(dirpath, out_dir, dataset, 32)
-            else:
-                run(dirpath, out_dir, dataset, 32, model)
+            dataset = args.dataset
+        create, run = switch_import(module)
+        if module != "FeatureExtraction":
+            run(dir_path, out_dir, dataset, batch_size, num_workers, device)
+        else:
+            run(dir_path, out_dir, dataset, batch_size, num_workers, device, model)
     if action == "validate":
-        sys.argv = [sys.argv[0], dirpath, "--out_dir", out_dir]
+        sys.argv = [sys.argv[0], dir_path, "--out_dir", out_dir]
         validate(sys.argv)

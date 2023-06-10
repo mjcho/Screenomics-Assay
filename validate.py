@@ -42,10 +42,6 @@ def validate(args):
     dirpath = args.dirpath
     out_dir = args.out_dir
 
-    # create out_dir
-    if not os.path.isdir(out_dir):  # for outputs
-        os.mkdir(out_dir)
-
     # list files in the directory
     log_s = f"Listing images for {dirpath} at: {str(datetime.now())}.\n"
     print(log_s)

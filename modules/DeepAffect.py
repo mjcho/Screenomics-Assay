@@ -39,17 +39,11 @@ else:
 
 # Set params
 module = "DeepAffect"
-gpu_id = 0  # int(np.floor(proc_id/2))
-os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
 
 # Create dataset
 def create(dirpath, out_dir):
     dataset_name = dirpath.split("/")[-1]
-
-    # create dir for saving dataset
-    if not os.path.isdir(out_dir):  # for outputs
-        os.mkdir(out_dir)
 
     # transform function
     tf = transforms.Compose(
@@ -85,8 +79,10 @@ def create(dirpath, out_dir):
     print(f"Dataset saved, length = {len(dataset)}\n\n")
 
 
-def run(dirpath, out_dir, dataset, batch_size):
+def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
     dataset_name = dirpath.split("/")[-1]
+    device = device.split(":")[-1]
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
 
     # Load model
     print("Loading model...\n\n")
@@ -102,7 +98,10 @@ def run(dirpath, out_dir, dataset, batch_size):
 
     print("Creating dataloader...")
     imageloader = torch.utils.data.DataLoader(
-        dataset=dataset, batch_size=batch_size, num_workers=4, prefetch_factor=2
+        dataset=dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        prefetch_factor=2,
     )
     print(f"dataloader created, length = {len(imageloader)}.\n\n")
 

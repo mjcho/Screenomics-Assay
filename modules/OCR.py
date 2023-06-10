@@ -32,7 +32,6 @@ else:
 
 # Set params
 module = "OCR"
-device = torch.device("cuda:0")
 
 
 """ Create dataset """
@@ -46,15 +45,6 @@ def img_loader(path: str):
 
 def create(dirpath, out_dir):
     dataset_name = dirpath.split("/")[-1]
-
-    # create dir for saving dataset
-    if not os.path.isdir(out_dir):  # for outputs
-        os.mkdir(out_dir)
-
-    # def img_loader(path: str):
-    #     with open(path, "rb") as f:
-    #         img = Image.open(f)
-    #         return img.convert("RGB")
 
     new_h, new_w = 640, 360  # 560, 315 # 800, 450  480, 270
 
@@ -91,7 +81,7 @@ def create(dirpath, out_dir):
 """ Run module"""
 
 
-def run(dirpath, out_dir, dataset, batch_size):
+def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
     dataset_name = dirpath.split("/")[-1]
 
     # Load model
@@ -232,7 +222,7 @@ def run(dirpath, out_dir, dataset, batch_size):
     imageloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=batch_size,  # each cpu process 30 images per batch
-        num_workers=4,
+        num_workers=num_workers,
         prefetch_factor=2,
         collate_fn=pil_collate_fn,
     )

@@ -34,7 +34,6 @@ else:
 
 # Set params
 module = "Places365"
-device = torch.device("cuda:0")
 
 
 """ Create dataset """
@@ -42,10 +41,6 @@ device = torch.device("cuda:0")
 
 def create(dirpath, out_dir):
     dataset_name = dirpath.split("/")[-1]
-
-    # create dir for saving dataset
-    if not os.path.isdir(out_dir):  # for outputs
-        os.mkdir(out_dir)
 
     tf = transforms.Compose(
         [
@@ -188,7 +183,7 @@ def load_model():
     return model
 
 
-def run(dirpath, out_dir, dataset, batch_size):
+def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
     dataset_name = dirpath.split("/")[-1]
 
     # Load model
@@ -213,7 +208,7 @@ def run(dirpath, out_dir, dataset, batch_size):
     imageloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=batch_size,  # each cpu process 30 images per batch
-        num_workers=4,
+        num_workers=num_workers,
         prefetch_factor=2,
     )
     print(f"dataloader created, length = {len(imageloader)}.\n\n")

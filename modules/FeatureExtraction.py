@@ -40,7 +40,6 @@ else:
     )
 
 module = "FeatureExtraction"
-device = "cuda:0"
 
 
 # Get model helper
@@ -110,10 +109,6 @@ transform = transforms.Compose(
 def create(dirpath, out_dir):
     dataset_name = dirpath.split("/")[-1]
 
-    # create dir for saving dataset
-    if not os.path.isdir(out_dir):  # for outputs
-        os.mkdir(out_dir)
-
     # transform function
     tf = transforms.Compose(
         [
@@ -155,10 +150,9 @@ def create(dirpath, out_dir):
     print(f"Dataset saved, length = {len(dataset)}\n\n")
 
 
-def run(dirpath, out_dir, dataset, batch_size, model="moco"):
+def run(dirpath, out_dir, dataset, batch_size, num_workers, device, model):
     dataset_name = dirpath.split("/")[-1]
-    # model = args.model
-    # workers = args.workers
+    print(model)
 
     # Load model
     print("Loading models...\n\n")
@@ -199,7 +193,7 @@ def run(dirpath, out_dir, dataset, batch_size, model="moco"):
     imageloader = DataLoader(
         dataset=dataset,
         batch_size=batch_size,  # each cpu process 30 images per batch
-        num_workers=4,
+        num_workers=num_workers,
         prefetch_factor=2,
     )
     print(f"dataloader created, length = {len(imageloader)}.\n\n")
