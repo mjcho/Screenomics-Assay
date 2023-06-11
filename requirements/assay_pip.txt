@@ -34,7 +34,7 @@ defusedxml==0.7.1
 easydict==1.9
 easyocr==1.4.2
 entrypoints==0.4
-facelib==1.6
+facelib @ git+https://github.com/sajjjadayobi/FaceLib.git
 facenet-pytorch==2.5.2
 fastai==2.7.11
 fastcore==1.5.29
