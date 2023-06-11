@@ -183,10 +183,8 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device, model):
         [int(cur_file.split(".")[0].split("_")[-1]) for cur_file in cur_files] + [0]
     )
     if max_idx != 0:
-        image_dataset = torch.utils.data.Subset(
-            image_dataset, range(max_idx, len(image_dataset))
-        )
-        print(f"Starting from {max_idx} of {len(image_dataset)}")
+        dataset = torch.utils.data.Subset(dataset, range(max_idx, len(dataset)))
+        print(f"Starting from {max_idx} of {len(dataset)}")
 
     print("Creating dataloader...")
     # Create dataset and loader

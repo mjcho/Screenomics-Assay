@@ -139,7 +139,7 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
     # for logging error messages
     err = {}
 
-    for i, (images, _) in tqdm(enumerate(imageloader)):
+    for i, (images, _) in enumerate(tqdm(imageloader)):
         # TODO (if resume for stop) actual batch no. is i + last_batch + 1
         # if is_resume:
         #     i = i + last_batch

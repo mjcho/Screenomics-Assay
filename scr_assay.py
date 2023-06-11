@@ -5,6 +5,9 @@ import time
 from datetime import datetime
 import pickle
 from validate import validate
+from PIL import ImageFile
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def switch_import(module):
@@ -110,7 +113,7 @@ if __name__ == "__main__":
     validate_parser.set_defaults(action="validate")
 
     args = parser.parse_args()
-    print(args)
+    # print(args)
     action = args.action
     # dir_path = os.path.expanduser(f"~/{args.dir_path}")
     # out_dir = os.path.expanduser(f"~/{args.out_dir}")
