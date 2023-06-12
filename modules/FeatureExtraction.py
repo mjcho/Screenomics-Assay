@@ -18,7 +18,6 @@ import pickle
 import argparse
 import timm
 
-from mocov3 import vits
 from datetime import datetime
 
 from PIL import features, Image
@@ -56,6 +55,9 @@ def get_model(
         model = torch.nn.DataParallel(model)
         encode_image = model
     elif model_name == "moco":
+        os.system("git clone https://github.com/facebookresearch/moco-v3.git")
+        from mocov3 import vits
+
         model = vits.vit_base()
         checkpoint = torch.load(moco_pth)
         state_dict = checkpoint["state_dict"]
