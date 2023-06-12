@@ -86,7 +86,9 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
 
     # Load model
     print("Loading model...\n\n")
-    model = load_model(os.path.expanduser(f"~/DEEPAFFECT/Face5frz_2-2-3BestModel.h5"))
+    print("\nModel is large (> 2 GB), please wait...\n\n")
+    os.system("gdown --id 1WBqYarmwywFpyQgH6pzJhKLJo3bcNxtb")
+    model = load_model(os.path.expanduser("Face5frz_2-2-3BestModel.h5"))
     print("\n\nModel loaded.\n\n")
 
     # Load dataset
