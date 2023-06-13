@@ -56,11 +56,15 @@ def get_model(
         encode_image = model
     elif model_name == "moco":
         import git
+        import importlib
 
-        if not os.path.exists("moco-v3"):
-            git.Git(".").clone("https://github.com/facebookresearch/moco-v3.git")
-        # os.system("git clone https://github.com/facebookresearch/moco-v3.git")
-        from mocov3 import vits
+        # import moco-v3.vits
+        if not os.path.exists("Screenomics-Assay/moco-v3"):
+            git.Git("Screenomics-Assay").clone(
+                "https://github.com/facebookresearch/moco-v3.git"
+            )
+            # os.system("git clone https://github.com/facebookresearch/moco-v3.git")
+        vits = importlib.import_module("moco-v3.vits")
 
         model = vits.vit_base()
         checkpoint = torch.load(moco_pth)
@@ -158,7 +162,6 @@ def create(dirpath, out_dir):
 
 def run(dirpath, out_dir, dataset, batch_size, num_workers, device, model):
     dataset_name = dirpath.split("/")[-1]
-    print(model)
 
     # Load model
     print("Loading models...\n\n")
@@ -167,7 +170,6 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device, model):
 
     # Load dataset
     print("Loading dataset...")
-    print(dataset)
     with open(dataset, "rb") as infile:
         dataset = pickle.load(infile)
     print(f"Dataset loaded, length = {len(dataset)}\n\n")

@@ -97,7 +97,7 @@ if __name__ == "__main__":
         "-dv",
         "--device",
         default="cuda:0",
-        help="gpu id to run the model on (int), default: 0",
+        help="device to run the model (e.g., 'cpu' or 'cuda:0'), gpu device ordinal is also valid (default is 0)",
     )
     run_parser.add_argument(
         "-m",
@@ -113,12 +113,10 @@ if __name__ == "__main__":
     validate_parser.set_defaults(action="validate")
 
     args = parser.parse_args()
-    # print(args)
     action = args.action
-    # dir_path = os.path.expanduser(f"~/{args.dir_path}")
-    # out_dir = os.path.expanduser(f"~/{args.out_dir}")
     dir_path = args.dir_path
     out_dir = args.out_dir
+
     # create out_dir if not exist
     if not os.path.isdir(out_dir):  # for outputs
         os.mkdir(out_dir)
@@ -134,15 +132,28 @@ if __name__ == "__main__":
         num_workers = int(args.num_workers)
         device = args.device
         model = args.model
-        if device == "cpu":
-            raise ValueError("CPU is not supported")
-        if device != "cpu" and device != "cuda:0":
-            device = f"cuda:{device}"
 
+        # Check device, if device is cpu, keep it as cpu. If device is cuda:[gpu_ind], keep it as cuda:[gpu_ind].
+        # If device is int, make it cuda:[int]. if device is not any of the above, raise error.
+        if device == "cpu":
+            pass
+        elif device.startswith("cuda:"):
+            if device[5:].isdigit():
+                pass
+            else:
+                raise ValueError("device must be cuda:[gpu_id] an int or 'cpu'")
+        elif device.isdigit():
+            device = f"cuda:{device}"
+        else:
+            raise ValueError("device must be an int or 'cpu'")
+
+        # create dataset if not provided
         if not args.dataset:
             dataset = f"{out_dir}/{dir_path.split('/')[-1]}_dataset_{module}.pkl"
         else:
             dataset = args.dataset
+
+        # run module
         create, run = switch_import(module)
         if module != "FeatureExtraction":
             run(dir_path, out_dir, dataset, batch_size, num_workers, device)

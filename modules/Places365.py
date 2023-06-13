@@ -150,10 +150,17 @@ def load_model():
     # this model has a last conv feature map as 14x14
 
     model_file = "wideresnet18_places365.pth.tar"
-    if not os.access(model_file, os.W_OK):
-        os.system("wget http://places2.csail.mit.edu/models_places365/" + model_file)
+    package_dir = "Screenomics-Assay"
+    if not os.access(package_dir + "/" + model_file, os.W_OK):
+        print("\nDownloading model, please wait...\n\n")
+        os.system(
+            "wget http://places2.csail.mit.edu/models_places365/"
+            + model_file
+            + f" -P {package_dir}"
+        )
         os.system(
             "wget https://raw.githubusercontent.com/csailvision/places365/master/wideresnet.py"
+            + f" -P {package_dir}"
         )
 
     import wideresnet
