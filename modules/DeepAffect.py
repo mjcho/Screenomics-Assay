@@ -92,7 +92,7 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
         import gdown
 
         gdown.download(
-            id="1WBqYarmwywFpyQgH6pzJhKLJo3bcNxtb",
+            id="1WBqYarmwywFpyQgH6pzJhKLJo3bcNxtb&confirm=t",
             output="Screenomics-Assay/Face5frz_2-2-3BestModel.h5",
         )
     model = load_model("Screenomics-Assay/Face5frz_2-2-3BestModel.h5")
