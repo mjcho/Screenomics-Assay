@@ -1,7 +1,6 @@
 import torch
 import torchvision
 from torchvision import transforms
-from image_entropy_GPU import entropy
 import time
 import numpy as np
 from datetime import datetime
@@ -80,6 +79,17 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
 
     # Load model
     print("Loading models...\n\n")
+    if not os.path.exists("Screenomics-Assay/image-entropy-GPU"):
+        print("Cloning image_entropy_GPU...")
+        import git
+
+        git.Git("Screenomics-Assay").clone(
+            "https://github.com/lusinlu/image-entropy-GPU.git"
+        )
+    import importlib
+
+    entropy = importlib.import_module("image-entropy-GPU.entropy")
+
     # set patch_size to new_size so no patching is performed (compute for the whole image)
     new_size = 64
     model = entropy.Entropy(
