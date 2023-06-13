@@ -55,7 +55,11 @@ def get_model(
         model = torch.nn.DataParallel(model)
         encode_image = model
     elif model_name == "moco":
-        os.system("git clone https://github.com/facebookresearch/moco-v3.git")
+        import git
+
+        if not os.path.exists("moco-v3"):
+            git.Git(".").clone("https://github.com/facebookresearch/moco-v3.git")
+        # os.system("git clone https://github.com/facebookresearch/moco-v3.git")
         from mocov3 import vits
 
         model = vits.vit_base()
