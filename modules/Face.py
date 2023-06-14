@@ -289,6 +289,14 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
                     n_faces.append(0)
 
             faces_input = torch.cat(faces_input, dim=0)
+            # UNKOWN ERROR: sometimes the faces_input tensor has shape (n, 3, 224, 224) instead of (n, 224, 224, 3).
+            # This is a temporary fix. The reason is that although facenet_pytorch==2.5.2 is installed through pip, it somewhow is inconsistent.
+            # Specifically, mtcnn.py imports detect_face.py and the extract face function returns either
+            # face = F.to_tensor(np.float32(face))
+            # or
+            # face = face.float() # this is the right way to go, which does not permute like to_tensor and returns (n, 224, 224, 3)
+            if faces_input.shape[3] != 3:
+                faces_input = faces_input.permute(0, 2, 3, 1)
             with torch.no_grad():
                 ag_res = age_gender_detector.detect(faces_input)
                 e_res = emotion_detector.detect_emotion(faces_input)
