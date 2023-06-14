@@ -48,10 +48,9 @@ def create(dirpath, out_dir):
     # transform function
     tf = transforms.Compose(
         [
-            transforms.Resize(
-                (224, 224), interpolation=transforms.InterpolationMode.NEAREST
-            ),
+            transforms.Resize((640, 360)),
             transforms.ToTensor(),
+            transforms.Normalize(mean=[0, 0, 0], std=[1 / 255, 1 / 255, 1 / 255]),
         ]
     )
 
