@@ -146,6 +146,10 @@ if __name__ == "__main__":
             device = f"cuda:{device}"
         else:
             raise ValueError("device must be an int or 'cpu'")
+        # if device is not cpu and cuda is not available, use cpu instead
+        if device != "cpu" and not torch.cuda.is_available():
+            print("Warning: cuda is not available, using cpu instead")
+            device = "cpu"
 
         # create dataset if not provided
         if not args.dataset:
