@@ -41,12 +41,16 @@ fastcore==1.5.29
 fastdownload==0.0.7
 fastjsonschema==2.17.1
 fastprogress==1.0.3
+filelock==3.12.2
 flatbuffers==2.0
 flit_core==3.9.0
 fonttools==4.31.2
 fsspec==2022.11.0
 ftfy==6.1.1
 gast==0.4.0
+gdown==4.7.1
+gitdb==4.0.10
+GitPython==3.1.31
 google-auth==1.35.0
 google-auth-oauthlib==0.4.6
 google-pasta==0.2.0
@@ -147,6 +151,7 @@ seaborn==0.11.2
 Send2Trash==1.8.2
 setuptools==59.8.0
 six==1.16.0
+smmap==3.0.5
 soupsieve==2.3.2.post1
 spacy==2.3.7
 srsly==1.0.5
