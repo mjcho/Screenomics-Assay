@@ -4,6 +4,7 @@ import sys
 import time
 from datetime import datetime
 import pickle
+import torch
 from validate import validate
 from PIL import ImageFile
 
@@ -150,7 +151,7 @@ if __name__ == "__main__":
         if device != "cpu" and not torch.cuda.is_available():
             print("Warning: cuda is not available, using cpu instead")
             device = "cpu"
-
+        print(device)
         # create dataset if not provided
         if not args.dataset:
             dataset = f"{out_dir}/{dir_path.split('/')[-1]}_dataset_{module}.pkl"

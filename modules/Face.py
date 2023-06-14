@@ -365,6 +365,7 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
                 emotion=emotion,
                 emotion_prob=emotion_prob,
                 img_names=img_names,
+                dtype=object
             )
 
         except Exception as e:
