@@ -270,6 +270,7 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
                     emotion=emotion,
                     emotion_prob=emotion_prob,
                     img_names=img_names,
+                    dtype=object,
                 )
                 # delete error entry if no error occurred for this batch
                 if all(v == "" for v in err[i].values()):
@@ -365,7 +366,7 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
                 emotion=emotion,
                 emotion_prob=emotion_prob,
                 img_names=img_names,
-                dtype=object
+                dtype=object,
             )
 
         except Exception as e:

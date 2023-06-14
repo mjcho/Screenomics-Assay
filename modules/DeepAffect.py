@@ -94,6 +94,7 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
         gdown.download(
             id="1WBqYarmwywFpyQgH6pzJhKLJo3bcNxtb&confirm=t",
             output="Screenomics-Assay/Face5frz_2-2-3BestModel.h5",
+            use_cookies=False,
         )
     model = load_model("Screenomics-Assay/Face5frz_2-2-3BestModel.h5")
     print("\n\nModel loaded.\n\n")
