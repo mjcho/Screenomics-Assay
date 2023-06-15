@@ -123,23 +123,51 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
     # Check if AgeGender weights in the facelib/AgeGender/weights folder can be loaded,
     # if not, print an error message and re-download the weights using gdown.
     try:
-        import facelib
+        # try to download and load the weights
+        age_gender_detector = AgeGenderEstimator(device=device)
 
-        facelib_path = os.path.dirname(os.path.abspath(facelib.__file__))
-        weight_path = facelib_path + "/AgeGender/weights/ShufflenetFull.pth"
-        torch.load(weight_path, map_location=device)
-        print("\n\nAgeGender weights can be loaded.\n\n")
+        print("\n\nAgeGender weights downloaded and loaded.\n\n")
     except Exception as e:
         print(f"\n\n{e}\n\n")
-        print("Re-downloading weights for AgeGender models using gdown...\n\n")
+        print("AgeGender weights exist but cannot be loaded...")
+
+        import facelib
+
+        # torch.load(weight_path, map_location=device)
+        facelib_path = os.path.dirname(os.path.abspath(facelib.__file__))
+        weight_path = facelib_path + "/AgeGender/weights/ShufflenetFull.pth"
+        os.remove(weight_path)
+
+        print("Re-downloading weights for AgeGender model using gdown...\n\n")
         gdown.download(
             id="1rnOZo46RjGZYrUb6Wup6sSOP37ol5I9E",
             output=weight_path,
             use_cookies=False,
         )
+        age_gender_detector = AgeGenderEstimator(device=device)
+    try:
+        # try to download and load the weights
+        emotion_detector = EmotionDetector(device=device)
 
-    age_gender_detector = AgeGenderEstimator(device=device)
-    emotion_detector = EmotionDetector(device=device)
+        print("\n\nEmotion weights downloaded and loaded.\n\n")
+    except Exception as e:
+        print(f"\n\n{e}\n\n")
+        print("Emotion weights exist but cannot be loaded...")
+
+        import facelib
+
+        # torch.load(weight_path, map_location=device)
+        facelib_path = os.path.dirname(os.path.abspath(facelib.__file__))
+        weight_path = facelib_path + "/FacialExpression/weights/densnet121.pth"
+        os.remove(weight_path)
+
+        print("Re-downloading weights for Emotion models using gdown...\n\n")
+        gdown.download(
+            id="1G3VsfgiQb16VyFnOwEVDgm2g8-9qN0-9",
+            output=weight_path,
+            use_cookies=False,
+        )
+        emotion_detector = EmotionDetector(device=device)
     print("\n\nModels loaded.\n\n")
 
     # Forward function for MTCNN to return results for analysis
