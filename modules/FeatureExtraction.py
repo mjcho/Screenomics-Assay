@@ -43,7 +43,7 @@ module = "FeatureExtraction"
 
 # Get model helper
 def get_model(
-    model_name, moco_pth="/home/ezelikman/vit-b-300ep.pth.tar", device="cuda:0"
+    model_name, moco_pth="Screenomics-Assay/vit-b-300ep.pth.tar", device="cuda:0"
 ):
     print(f"Getting model {model_name}")
     if "clip" in model_name:
@@ -70,6 +70,15 @@ def get_model(
         vits = importlib.import_module("moco-v3.vits")
 
         model = vits.vit_base()
+        if not os.path.exists(moco_pth):
+            import gdown
+
+            print("Downloading moco-v3 weights...")
+            gdown.download(
+                id="1X22qWguXULPb7HFDknYMZnigfneWBPjS&confirm=t",
+                output=moco_pth,
+                use_cookies=False,
+            )
         checkpoint = torch.load(moco_pth)
         state_dict = checkpoint["state_dict"]
         linear_keyword = "head"
