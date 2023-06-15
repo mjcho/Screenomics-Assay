@@ -5,6 +5,7 @@ from torchvision import transforms
 import imghdr
 import time
 import numpy as np
+import gdown
 
 # Change extract_faces function in detect_faces.py to avoid permutation errors, see the UNKNOWN ERROR below.
 import facenet_pytorch
@@ -117,6 +118,26 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
         keep_all=True,
         device=device,
     )
+
+    # Sometimes the AgeGender models weights are not downloaded correctly, so we need to check.
+    # Check if AgeGender weights in the facelib/AgeGender/weights folder can be loaded,
+    # if not, print an error message and re-download the weights using gdown.
+    try:
+        import facelib
+
+        facelib_path = os.path.dirname(os.path.abspath(facelib.__file__))
+        weight_path = facelib_path + "/AgeGender/weights/ShufflenetFull.pth"
+        torch.load(weight_path, map_location=device)
+        print("\n\nAgeGender weights can be loaded.\n\n")
+    except Exception as e:
+        print(f"\n\n{e}\n\n")
+        print("Re-downloading weights for AgeGender models using gdown...\n\n")
+        gdown.download(
+            id="1rnOZo46RjGZYrUb6Wup6sSOP37ol5I9E",
+            output=weight_path,
+            use_cookies=False,
+        )
+
     age_gender_detector = AgeGenderEstimator(device=device)
     emotion_detector = EmotionDetector(device=device)
     print("\n\nModels loaded.\n\n")
