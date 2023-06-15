@@ -8,7 +8,6 @@ import pickle
 import json
 from tqdm import tqdm
 import os
-from yolov5.utils.general import non_max_suppression
 
 from PIL import features, Image
 from packaging import version
@@ -78,6 +77,14 @@ def run(dirpath, out_dir, dataset, batch_size, num_workers, device):
 
     # Load model
     print("Loading models...\n\n")
+    # if not os.path.exists("Screenomics-Assay/yolov5"):
+    #     print("Cloning yolov5")
+    #     import git
+
+    #     git.Git("Screenomics-Assay").clone("https://github.com/ultralytics/yolov5")
+
+    from yolov5.utils.general import non_max_suppression
+
     # set patch_size to new_size so no patching is performed (compute for the whole image)
     model = torch.hub.load("ultralytics/yolov5", "yolov5m", pretrained=True)
     model.to(device)
